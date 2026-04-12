@@ -1,13 +1,13 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "MATS — BJJ Academy Manager",
+  title: "Sharjah BJJ Academy",
   description: "Manage BJJ students, attendance, progress, and financials",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "MATS BJJ",
+    title: "Sharjah BJJ Academy",
   },
 };
 

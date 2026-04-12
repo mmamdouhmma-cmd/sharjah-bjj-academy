@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, createContext, useContext } 
 import {
   Users, ClipboardCheck, BarChart3, DollarSign, Search, X, ChevronDown, ChevronRight,
   Check, History, Sun, Moon, Languages, Swords, Shield, Brain, Zap, BookOpen, Target,
-  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2
+  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2, Pencil
 } from "lucide-react";
 import { translations, MONTHS_EN, MONTHS_AR } from "@/lib/i18n";
 import {
@@ -318,7 +318,7 @@ function StudentsPage({ students, reload }) {
 
 // ═══════════════════ ATTENDANCE PAGE ═══════════════════
 
-function AttendancePage({ students, reload }) {
+function AttendancePage({ students, patchStudent }) {
   const { t, lang } = useApp();
   const months = lang === "ar" ? MONTHS_AR : MONTHS_EN;
   const [selectedDate, setSelectedDate] = useState(today());
@@ -327,7 +327,15 @@ function AttendancePage({ students, reload }) {
 
   const handleToggle = async (sid) => {
     setToggling(sid);
-    try { await db.toggleAttendance(sid, selectedDate); await reload(); } catch (e) { console.error(e); }
+    try {
+      const added = await db.toggleAttendance(sid, selectedDate);
+      patchStudent(sid, s => ({
+        ...s,
+        attendance: added
+          ? [...(s.attendance || []), selectedDate]
+          : (s.attendance || []).filter(d => d !== selectedDate),
+      }));
+    } catch (e) { console.error(e); }
     setToggling(null);
   };
 
@@ -391,7 +399,7 @@ function AttendancePage({ students, reload }) {
 
 // ═══════════════════ PROGRESS PAGE ═══════════════════
 
-function ProgressPage({ students, reload }) {
+function ProgressPage({ students, patchStudent }) {
   const { t, lang } = useApp();
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState("fighter");
@@ -399,18 +407,23 @@ function ProgressPage({ students, reload }) {
   const toggleGroup = (g) => setCollapsedGroups(prev => ({ ...prev, [g]: !prev[g] }));
 
   const handleFighterChange = async (sid, key, val) => {
-    try { await db.updateFighterRating(sid, key, Number(val)); await reload(); } catch (e) { console.error(e); }
+    const numVal = Number(val);
+    patchStudent(sid, s => ({ ...s, fighterRatings: { ...(s.fighterRatings || {}), [key]: numVal } }));
+    try { await db.updateFighterRating(sid, key, numVal); } catch (e) { console.error(e); }
   };
   const handleTechChange = async (sid, key, val) => {
-    try { await db.updateTechnicalEval(sid, key, val); await reload(); } catch (e) { console.error(e); }
+    patchStudent(sid, s => ({ ...s, technical: { ...(s.technical || {}), [key]: val } }));
+    try { await db.updateTechnicalEval(sid, key, val); } catch (e) { console.error(e); }
   };
   const handlePhysChange = async (sid, key, val) => {
-    try { await db.updatePhysicalEval(sid, key, val); await reload(); } catch (e) { console.error(e); }
+    patchStudent(sid, s => ({ ...s, physical: { ...(s.physical || {}), [key]: val } }));
+    try { await db.updatePhysicalEval(sid, key, val); } catch (e) { console.error(e); }
   };
   const handleBeltChange = async (sid, field, val) => {
     const dbField = field === "stripes" ? "stripes" : "belt";
     const dbVal = field === "stripes" ? Number(val) : val;
-    try { await db.updateStudentBelt(sid, dbField, dbVal); await reload(); } catch (e) { console.error(e); }
+    patchStudent(sid, { [field]: dbVal });
+    try { await db.updateStudentBelt(sid, dbField, dbVal); } catch (e) { console.error(e); }
   };
 
   const getOverall = (s) => {
@@ -555,16 +568,45 @@ function ProgressPage({ students, reload }) {
 
 // ═══════════════════ FINANCIALS PAGE ═══════════════════
 
-function FinancialsPage({ students }) {
+function FinancialsPage({ students, reload }) {
   const { t, lang } = useApp();
   const months = lang === "ar" ? MONTHS_AR : MONTHS_EN;
   const [viewMonth, setViewMonth] = useState(today().substring(0, 7));
+  const [invoiceModal, setInvoiceModal] = useState(null);
+  const [invForm, setInvForm] = useState({ amount: 0, description: "", date: "" });
+  const [invSaving, setInvSaving] = useState(false);
 
   const allInvoices = useMemo(() => {
     const inv = [];
     students.forEach(s => (s.invoices || []).forEach(i => inv.push({ ...i, studentName: s.name })));
     return inv.sort((a, b) => b.date.localeCompare(a.date));
   }, [students]);
+
+  const openEdit = (inv) => {
+    setInvForm({ amount: inv.amount, description: inv.description, date: inv.date });
+    setInvoiceModal(inv);
+  };
+
+  const handleInvoiceSave = async () => {
+    setInvSaving(true);
+    try {
+      await db.updateInvoice(invoiceModal.id, invForm);
+      await reload();
+      setInvoiceModal(null);
+    } catch (e) { console.error(e); }
+    setInvSaving(false);
+  };
+
+  const handleInvoiceDelete = async () => {
+    if (!confirm(t.deleteInvoice + "?")) return;
+    setInvSaving(true);
+    try {
+      await db.deleteInvoice(invoiceModal.id);
+      await reload();
+      setInvoiceModal(null);
+    } catch (e) { console.error(e); }
+    setInvSaving(false);
+  };
 
   const monthlySales = useMemo(() => {
     const map = {};
@@ -612,17 +654,30 @@ function FinancialsPage({ students }) {
       <Input type="month" value={viewMonth} onChange={e => setViewMonth(e.target.value)} />
       <div style={{ display: "grid", gap: 6 }}>
         {monthInvoices.map(inv => (
-          <div key={inv.id} style={{ padding: "10px 14px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
+          <div key={inv.id} style={{ padding: "10px 14px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{inv.studentName}</div>
               <div style={{ fontSize: 11, color: "var(--muted)" }}>{inv.description}</div>
               <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{inv.date}</div>
             </div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#059669" }}>{inv.amount} AED</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#059669", flexShrink: 0 }}>{inv.amount} AED</div>
+            <button onClick={() => openEdit(inv)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", display: "flex", padding: 4, borderRadius: 4, flexShrink: 0 }}><Pencil size={14} /></button>
           </div>
         ))}
         {monthInvoices.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "var(--muted)", fontSize: 13 }}>{t.noInvoicesMonth}</div>}
       </div>
+
+      <Modal open={!!invoiceModal} onClose={() => setInvoiceModal(null)} title={t.editInvoice} width={380}>
+        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>{invoiceModal?.studentName}</div>
+        <Input label={t.date} type="date" value={invForm.date} onChange={e => setInvForm({ ...invForm, date: e.target.value })} />
+        <Input label={t.amount} type="number" value={invForm.amount} onChange={e => setInvForm({ ...invForm, amount: e.target.value })} />
+        <Input label="Description" value={invForm.description} onChange={e => setInvForm({ ...invForm, description: e.target.value })} />
+        <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+          <Btn variant="danger" loading={invSaving} onClick={handleInvoiceDelete} style={{ marginRight: "auto" }}><Trash2 size={13} /> {t.deleteInvoice}</Btn>
+          <Btn variant="secondary" onClick={() => setInvoiceModal(null)}>{t.cancel}</Btn>
+          <Btn loading={invSaving} onClick={handleInvoiceSave}>{t.save}</Btn>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -644,6 +699,10 @@ export default function Home() {
       setStudents(data);
     } catch (e) { console.error("Failed to load:", e); }
     setLoading(false);
+  }, []);
+
+  const patchStudent = useCallback((id, updater) => {
+    setStudents(prev => prev.map(s => s.id === id ? (typeof updater === "function" ? updater(s) : { ...s, ...updater }) : s));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -670,7 +729,7 @@ export default function Home() {
       }}>
         {/* Header */}
         <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-          <Swords size={22} style={{ color: "var(--accent)" }} />
+          <img src="/logo.jpeg" alt="logo" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: -0.5 }}>{t.appName}</div>
             <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 2 }}>{t.appSub}</div>
@@ -688,9 +747,9 @@ export default function Home() {
         {/* Content */}
         <div style={{ flex: 1, padding: 16, paddingBottom: 80, overflow: "auto" }}>
           {page === "students" && <StudentsPage students={students} reload={loadData} />}
-          {page === "attendance" && <AttendancePage students={students} reload={loadData} />}
-          {page === "progress" && <ProgressPage students={students} reload={loadData} />}
-          {page === "financials" && <FinancialsPage students={students} />}
+          {page === "attendance" && <AttendancePage students={students} patchStudent={patchStudent} />}
+          {page === "progress" && <ProgressPage students={students} patchStudent={patchStudent} />}
+          {page === "financials" && <FinancialsPage students={students} reload={loadData} />}
         </div>
 
         {/* Bottom Nav */}

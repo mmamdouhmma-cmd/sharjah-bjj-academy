@@ -1,6 +1,6 @@
 {
-  "name": "MATS — BJJ Academy Manager",
-  "short_name": "MATS BJJ",
+  "name": "Sharjah BJJ Academy",
+  "short_name": "Sharjah BJJ",
   "description": "Manage BJJ students, attendance, progress, and financials",
   "start_url": "/",
   "display": "standalone",
@@ -8,12 +8,6 @@
   "theme_color": "#111827",
   "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
