@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } from "react";
 import {
   Users, ClipboardCheck, BarChart3, DollarSign, Search, X, ChevronDown, ChevronRight,
   Check, History, Sun, Moon, Languages, Swords, Shield, Brain, Zap, BookOpen, Target,
@@ -127,7 +127,7 @@ function RadarChart({ data, size = 160, color = "#C41E1E" }) {
   const n = attrs.length;
   const step = (2 * Math.PI) / n;
   const pt = (i, pct) => [cx + r * pct * Math.cos(i * step - Math.PI / 2), cy + r * pct * Math.sin(i * step - Math.PI / 2)];
-  const poly = attrs.map((a, i) => pt(i, a.val / 10).join(",")).join(" ");
+  const poly = attrs.map((a, i) => pt(i, a.val / 100).join(",")).join(" ");
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {[0.25, 0.5, 0.75, 1].map(lv => (
@@ -135,7 +135,7 @@ function RadarChart({ data, size = 160, color = "#C41E1E" }) {
       ))}
       {attrs.map((_, i) => { const [x, y] = pt(i, 1); return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)" strokeWidth={0.5} opacity={0.3} />; })}
       <polygon points={poly} fill={color} fillOpacity={0.2} stroke={color} strokeWidth={1.5} />
-      {attrs.map((a, i) => { const [x, y] = pt(i, a.val / 10); return <circle key={`d${i}`} cx={x} cy={y} r={3} fill={a.color} />; })}
+      {attrs.map((a, i) => { const [x, y] = pt(i, a.val / 100); return <circle key={`d${i}`} cx={x} cy={y} r={3} fill={a.color} />; })}
     </svg>
   );
 }
@@ -404,12 +404,17 @@ function ProgressPage({ students, patchStudent }) {
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState("fighter");
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const saveTimers = useRef({});
   const toggleGroup = (g) => setCollapsedGroups(prev => ({ ...prev, [g]: !prev[g] }));
 
-  const handleFighterChange = async (sid, key, val) => {
-    const numVal = Number(val);
+  const handleFighterChange = (sid, key, val) => {
+    const numVal = Math.min(100, Math.max(0, Number(val) || 0));
     patchStudent(sid, s => ({ ...s, fighterRatings: { ...(s.fighterRatings || {}), [key]: numVal } }));
-    try { await db.updateFighterRating(sid, key, numVal); } catch (e) { console.error(e); }
+    const timerKey = `${sid}-${key}`;
+    clearTimeout(saveTimers.current[timerKey]);
+    saveTimers.current[timerKey] = setTimeout(() => {
+      db.updateFighterRating(sid, key, numVal).catch(console.error);
+    }, 500);
   };
   const handleTechChange = async (sid, key, val) => {
     patchStudent(sid, s => ({ ...s, technical: { ...(s.technical || {}), [key]: val } }));
@@ -487,18 +492,35 @@ function ProgressPage({ students, patchStudent }) {
                       <div style={{ display: "flex", justifyContent: "center", margin: "0 0 16px" }}>
                         <RadarChart data={s.fighterRatings || {}} size={180} color={getBeltInfo(s.belt)?.bg} />
                       </div>
-                      {FIGHTER_ATTRS.map(a => (
-                        <div key={a.key} style={{ marginBottom: 14 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><a.Icon size={13} /> {t[a.labelKey]}</span>
-                            <span style={{ fontSize: 16, fontWeight: 800, color: a.color }}>{(s.fighterRatings || {})[a.key] || 0}/10</span>
+                      {FIGHTER_ATTRS.map(a => {
+                        const val = (s.fighterRatings || {})[a.key] || 0;
+                        return (
+                          <div key={a.key} style={{ marginBottom: 16 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><a.Icon size={13} /> {t[a.labelKey]}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <input
+                                  type="number" min={0} max={100}
+                                  value={val}
+                                  onChange={e => handleFighterChange(s.id, a.key, e.target.value)}
+                                  style={{
+                                    width: 52, padding: "3px 6px", borderRadius: 6, textAlign: "center",
+                                    border: `1.5px solid ${a.color}44`, background: "var(--surface2)",
+                                    color: a.color, fontWeight: 800, fontSize: 14, outline: "none",
+                                  }}
+                                />
+                                <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>/100</span>
+                              </div>
+                            </div>
+                            <input type="range" min={0} max={100} step={1} value={val}
+                              onChange={e => handleFighterChange(s.id, a.key, e.target.value)}
+                              style={{ width: "100%", accentColor: a.color, cursor: "pointer" }} />
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--muted)", marginTop: 2 }}>
+                              <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                            </div>
                           </div>
-                          <input type="range" min={0} max={10} step={1} value={(s.fighterRatings || {})[a.key] || 0}
-                            onChange={e => handleFighterChange(s.id, a.key, e.target.value)}
-                            style={{ width: "100%", accentColor: a.color }} />
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--muted)", marginTop: 2 }}><span>0</span><span>5</span><span>10</span></div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   {tab === "technical" && (() => {
@@ -729,7 +751,7 @@ export default function Home() {
       }}>
         {/* Header */}
         <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/logo.jpeg" alt="logo" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+          <img src="/bjj-logo.jpeg" alt="logo" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: -0.5 }}>{t.appName}</div>
             <div style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 2 }}>{t.appSub}</div>

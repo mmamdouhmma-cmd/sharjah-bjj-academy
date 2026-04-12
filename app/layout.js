@@ -4,6 +4,10 @@ export const metadata = {
   title: "Sharjah BJJ Academy",
   description: "Manage BJJ students, attendance, progress, and financials",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
