@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, createContext, useCo
 import {
   Users, ClipboardCheck, BarChart3, DollarSign, Search, X, ChevronDown, ChevronRight,
   Check, History, Sun, Moon, Languages, Swords, Shield, Brain, Zap, BookOpen, Target,
-  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2, Pencil
+  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2, Pencil, Phone
 } from "lucide-react";
 import { translations, MONTHS_EN, MONTHS_AR } from "@/lib/i18n";
 import {
@@ -171,14 +171,14 @@ function TechBadge({ value }) {
 function StudentsPage({ students, reload }) {
   const { t, lang } = useApp();
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0 });
+  const [form, setForm] = useState({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0, phone: "" });
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
 
   const isExpired = (s) => s.membershipEnd && new Date(s.membershipEnd) < new Date();
 
   const openAdd = () => { setForm({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0 }); setModal("add"); };
-  const openEdit = (s) => { setForm({ name: s.name, dob: s.dob, belt: s.belt, stripes: s.stripes, membershipStart: s.membershipStart, membershipEnd: s.membershipEnd, amountPaid: 0, _id: s.id }); setModal(s.id); };
+  const openEdit = (s) => { setForm({ name: s.name, dob: s.dob, belt: s.belt, stripes: s.stripes, membershipStart: s.membershipStart, membershipEnd: s.membershipEnd, amountPaid: 0, phone: s.phone || "", _id: s.id }); setModal(s.id); };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -264,6 +264,12 @@ function StudentsPage({ students, reload }) {
                   {s.name}
                   {s.dob && <span style={{ fontSize: 10, color: "var(--muted)", fontWeight: 400 }}>({getAge(s.dob)}{isKid(s.dob) ? ` · ${t.kid}` : ""})</span>}
                 </div>
+                {s.phone && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+                    <Phone size={10} style={{ color: "var(--muted)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: "var(--muted)" }}>{s.phone}</span>
+                  </div>
+                )}
                 <Badge belt={s.belt} stripes={s.stripes} size="sm" />
               </div>
               {expired && <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: "#DC262622", color: "#DC2626", fontWeight: 600 }}>{t.expired}</span>}
@@ -275,6 +281,7 @@ function StudentsPage({ students, reload }) {
 
       <Modal open={modal === "add" || (modal && !String(modal).startsWith("renew"))} onClose={() => setModal(null)} title={modal === "add" ? t.addStudent : t.editStudent}>
         <Input label={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+        <Input label={t.phone} type="tel" value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} />
         <Input label={t.dob} type="date" value={form.dob || ""} onChange={e => {
           const d = e.target.value; const m = getBeltMap(d);
           setForm({ ...form, dob: d, belt: m[form.belt] ? form.belt : "white" });

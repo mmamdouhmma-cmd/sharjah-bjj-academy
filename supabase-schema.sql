@@ -12,6 +12,7 @@ CREATE TABLE students (
   stripes INTEGER NOT NULL DEFAULT 0 CHECK (stripes >= 0 AND stripes <= 4),
   membership_start DATE,
   membership_end DATE,
+  phone TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -40,11 +41,11 @@ CREATE TABLE invoices (
 CREATE TABLE fighter_ratings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE UNIQUE,
-  focus INTEGER DEFAULT 0 CHECK (focus >= 0 AND focus <= 10),
-  attendance_rating INTEGER DEFAULT 0 CHECK (attendance_rating >= 0 AND attendance_rating <= 10),
-  performance INTEGER DEFAULT 0 CHECK (performance >= 0 AND performance <= 10),
-  behavior INTEGER DEFAULT 0 CHECK (behavior >= 0 AND behavior <= 10),
-  studying INTEGER DEFAULT 0 CHECK (studying >= 0 AND studying <= 10),
+  focus INTEGER DEFAULT 0 CHECK (focus >= 0 AND focus <= 100),
+  attendance_rating INTEGER DEFAULT 0 CHECK (attendance_rating >= 0 AND attendance_rating <= 100),
+  performance INTEGER DEFAULT 0 CHECK (performance >= 0 AND performance <= 100),
+  behavior INTEGER DEFAULT 0 CHECK (behavior >= 0 AND behavior <= 100),
+  studying INTEGER DEFAULT 0 CHECK (studying >= 0 AND studying <= 100),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
