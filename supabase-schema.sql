@@ -78,6 +78,16 @@ CREATE TABLE physical_evals (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 7. App credentials (single-row table for the app login)
+CREATE TABLE app_credentials (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  username TEXT NOT NULL,
+  password TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+INSERT INTO app_credentials (id, username, password) VALUES (1, 'khaled raafat', '258001')
+  ON CONFLICT (id) DO NOTHING;
+
 -- Indexes for performance
 CREATE INDEX idx_attendance_student ON attendance(student_id);
 CREATE INDEX idx_attendance_date ON attendance(date);
@@ -105,6 +115,7 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fighter_ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE technical_evals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE physical_evals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_credentials ENABLE ROW LEVEL SECURITY;
 
 -- Public access policies (for development — restrict in production with auth)
 CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
@@ -113,3 +124,4 @@ CREATE POLICY "Allow all on invoices" ON invoices FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Allow all on fighter_ratings" ON fighter_ratings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on technical_evals" ON technical_evals FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on physical_evals" ON physical_evals FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on app_credentials" ON app_credentials FOR ALL USING (true) WITH CHECK (true);

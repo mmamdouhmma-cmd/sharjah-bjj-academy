@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, createContext, useCo
 import {
   Users, ClipboardCheck, BarChart3, DollarSign, Search, X, ChevronDown, ChevronRight,
   Check, History, Sun, Moon, Languages, Swords, Shield, Brain, Zap, BookOpen, Target,
-  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2, Pencil, Phone
+  Dumbbell, RefreshCw, Trash2, UserPlus, Baby, User, Loader2, Pencil, Phone, Lock, LogOut
 } from "lucide-react";
 import { translations, MONTHS_EN, MONTHS_AR } from "@/lib/i18n";
 import {
@@ -713,12 +713,123 @@ function FinancialsPage({ students, reload }) {
 
 // ═══════════════════ APP ═══════════════════
 
+const AUTH_KEY = "bjj_auth";
+
+function LoginScreen({ onLogin, theme }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      const creds = await db.fetchCredentials();
+      if (username.trim().toLowerCase() === creds.username.toLowerCase() && password === creds.password) {
+        localStorage.setItem(AUTH_KEY, "1");
+        onLogin();
+      } else {
+        setError("Invalid username or password");
+      }
+    } catch (err) {
+      setError("Login failed: " + (err.message || "unknown error"));
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className={theme === "light" ? "theme-light" : ""} style={{
+      fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
+      background: "var(--bg)", color: "var(--text)", minHeight: "100vh",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        width: "100%", maxWidth: 360, background: "var(--surface)",
+        border: "1px solid var(--border)", borderRadius: 12, padding: 28,
+        boxShadow: "0 24px 48px rgba(0,0,0,0.3)",
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+          <img src="/bjj-logo.jpeg" alt="logo" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", marginBottom: 12 }} />
+          <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>Sharjah BJJ Academy</div>
+          <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 2, marginTop: 4 }}>Sign In</div>
+        </div>
+        <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+        <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>{error}</div>}
+        <button type="submit" disabled={submitting} style={{
+          width: "100%", padding: "10px 16px", borderRadius: 6, border: "none",
+          background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 700,
+          cursor: submitting ? "wait" : "pointer", marginTop: 4, opacity: submitting ? 0.7 : 1,
+        }}>{submitting ? "Signing in..." : "Sign In"}</button>
+      </form>
+    </div>
+  );
+}
+
+function CredentialsModal({ open, onClose }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setStatus("");
+    setBusy(true);
+    db.fetchCredentials()
+      .then((c) => { setUsername(c.username); setPassword(c.password); })
+      .catch((e) => setStatus("Failed to load: " + (e.message || "")))
+      .finally(() => setBusy(false));
+  }, [open]);
+
+  const handleSave = async () => {
+    if (!username.trim() || !password) return;
+    setBusy(true);
+    try {
+      await db.updateCredentials({ username: username.trim(), password });
+      setStatus("Saved!");
+      setTimeout(() => onClose(), 600);
+    } catch (e) {
+      setStatus("Save failed: " + (e.message || ""));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Credentials" width={400}>
+      <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={busy} />
+      <Input label="Password" type="text" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+      {status && <div style={{ fontSize: 12, color: status.startsWith("Saved") ? "#10b981" : "#ef4444", marginBottom: 8 }}>{status}</div>}
+      <button onClick={handleSave} disabled={busy} style={{
+        width: "100%", padding: "10px 16px", borderRadius: 6, border: "none",
+        background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 700,
+        cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1,
+      }}>{busy ? "Working..." : "Save"}</button>
+    </Modal>
+  );
+}
+
 export default function Home() {
+  const [authed, setAuthed] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [credsOpen, setCredsOpen] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState("students");
   const [lang, setLang] = useState("en");
   const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    setAuthed(localStorage.getItem(AUTH_KEY) === "1");
+    setAuthChecked(true);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    setAuthed(false);
+  };
 
   const t = translations[lang];
 
@@ -734,7 +845,10 @@ export default function Home() {
     setStudents(prev => prev.map(s => s.id === id ? (typeof updater === "function" ? updater(s) : { ...s, ...updater }) : s));
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (authed) loadData(); }, [loadData, authed]);
+
+  if (!authChecked) return null;
+  if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} theme={theme} />;
 
   const NAV = [
     { id: "students", label: t.students, Icon: Users },
@@ -771,7 +885,16 @@ export default function Home() {
             background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px",
             cursor: "pointer", display: "flex", alignItems: "center", color: "var(--text)",
           }}>{theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}</button>
+          <button onClick={() => setCredsOpen(true)} title="Edit credentials" style={{
+            background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px",
+            cursor: "pointer", display: "flex", alignItems: "center", color: "var(--text)",
+          }}><Lock size={14} /></button>
+          <button onClick={handleLogout} title="Logout" style={{
+            background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px",
+            cursor: "pointer", display: "flex", alignItems: "center", color: "var(--text)",
+          }}><LogOut size={14} /></button>
         </div>
+        <CredentialsModal open={credsOpen} onClose={() => setCredsOpen(false)} />
 
         {/* Content */}
         <div style={{ flex: 1, padding: 16, paddingBottom: 80, overflow: "auto" }}>
