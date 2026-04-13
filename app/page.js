@@ -714,8 +714,6 @@ function FinancialsPage({ students, reload }) {
 
 // ═══════════════════ APP ═══════════════════
 
-const AUTH_KEY = "bjj_auth";
-
 function CredentialsModal({ open, onClose }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -761,8 +759,6 @@ function CredentialsModal({ open, onClose }) {
 
 export default function Home() {
   const router = useRouter();
-  const [authed, setAuthed] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [credsOpen, setCredsOpen] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -770,17 +766,10 @@ export default function Home() {
   const [lang, setLang] = useState("en");
   const [theme, setTheme] = useState("dark");
 
-  useEffect(() => {
-    const ok = localStorage.getItem(AUTH_KEY) === "1";
-    setAuthed(ok);
-    setAuthChecked(true);
-    if (!ok) router.replace("/login");
-  }, [router]);
-
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setAuthed(false);
+    document.cookie = "bjj_auth=; path=/; max-age=0; samesite=lax";
     router.replace("/login");
+    router.refresh();
   };
 
   const t = translations[lang];
@@ -797,9 +786,7 @@ export default function Home() {
     setStudents(prev => prev.map(s => s.id === id ? (typeof updater === "function" ? updater(s) : { ...s, ...updater }) : s));
   }, []);
 
-  useEffect(() => { if (authed) loadData(); }, [loadData, authed]);
-
-  if (!authChecked || !authed) return null;
+  useEffect(() => { loadData(); }, [loadData]);
 
   const NAV = [
     { id: "students", label: t.students, Icon: Users },
