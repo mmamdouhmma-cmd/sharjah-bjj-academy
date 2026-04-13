@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
 import {
   Users, ClipboardCheck, BarChart3, DollarSign, Search, X, ChevronDown, ChevronRight,
   Check, History, Sun, Moon, Languages, Swords, Shield, Brain, Zap, BookOpen, Target,
@@ -715,59 +716,6 @@ function FinancialsPage({ students, reload }) {
 
 const AUTH_KEY = "bjj_auth";
 
-function LoginScreen({ onLogin, theme }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-    try {
-      const creds = await db.fetchCredentials();
-      if (username.trim().toLowerCase() === creds.username.toLowerCase() && password === creds.password) {
-        localStorage.setItem(AUTH_KEY, "1");
-        onLogin();
-      } else {
-        setError("Invalid username or password");
-      }
-    } catch (err) {
-      setError("Login failed: " + (err.message || "unknown error"));
-    }
-    setSubmitting(false);
-  };
-
-  return (
-    <div className={theme === "light" ? "theme-light" : ""} style={{
-      fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-      background: "var(--bg)", color: "var(--text)", minHeight: "100vh",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        width: "100%", maxWidth: 360, background: "var(--surface)",
-        border: "1px solid var(--border)", borderRadius: 12, padding: 28,
-        boxShadow: "0 24px 48px rgba(0,0,0,0.3)",
-      }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
-          <img src="/bjj-logo.jpeg" alt="logo" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", marginBottom: 12 }} />
-          <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>Sharjah BJJ Academy</div>
-          <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 2, marginTop: 4 }}>Sign In</div>
-        </div>
-        <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
-        <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        {error && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>{error}</div>}
-        <button type="submit" disabled={submitting} style={{
-          width: "100%", padding: "10px 16px", borderRadius: 6, border: "none",
-          background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 700,
-          cursor: submitting ? "wait" : "pointer", marginTop: 4, opacity: submitting ? 0.7 : 1,
-        }}>{submitting ? "Signing in..." : "Sign In"}</button>
-      </form>
-    </div>
-  );
-}
-
 function CredentialsModal({ open, onClose }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -812,6 +760,7 @@ function CredentialsModal({ open, onClose }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [authed, setAuthed] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [credsOpen, setCredsOpen] = useState(false);
@@ -822,13 +771,16 @@ export default function Home() {
   const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
-    setAuthed(localStorage.getItem(AUTH_KEY) === "1");
+    const ok = localStorage.getItem(AUTH_KEY) === "1";
+    setAuthed(ok);
     setAuthChecked(true);
-  }, []);
+    if (!ok) router.replace("/login");
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_KEY);
     setAuthed(false);
+    router.replace("/login");
   };
 
   const t = translations[lang];
@@ -847,8 +799,7 @@ export default function Home() {
 
   useEffect(() => { if (authed) loadData(); }, [loadData, authed]);
 
-  if (!authChecked) return null;
-  if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} theme={theme} />;
+  if (!authChecked || !authed) return null;
 
   const NAV = [
     { id: "students", label: t.students, Icon: Users },
