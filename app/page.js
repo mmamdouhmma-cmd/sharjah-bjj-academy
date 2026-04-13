@@ -172,14 +172,14 @@ function TechBadge({ value }) {
 function StudentsPage({ students, reload }) {
   const { t, lang } = useApp();
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0, phone: "" });
+  const [form, setForm] = useState({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0, phone: "", notes: "" });
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
 
   const isExpired = (s) => s.membershipEnd && new Date(s.membershipEnd) < new Date();
 
-  const openAdd = () => { setForm({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0 }); setModal("add"); };
-  const openEdit = (s) => { setForm({ name: s.name, dob: s.dob, belt: s.belt, stripes: s.stripes, membershipStart: s.membershipStart, membershipEnd: s.membershipEnd, amountPaid: 0, phone: s.phone || "", _id: s.id }); setModal(s.id); };
+  const openAdd = () => { setForm({ name: "", dob: "", belt: "white", stripes: 0, membershipStart: today(), membershipEnd: "", amountPaid: 0, phone: "", notes: "" }); setModal("add"); };
+  const openEdit = (s) => { setForm({ name: s.name, dob: s.dob, belt: s.belt, stripes: s.stripes, membershipStart: s.membershipStart, membershipEnd: s.membershipEnd, amountPaid: 0, phone: s.phone || "", notes: s.notes || "", _id: s.id }); setModal(s.id); };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -272,6 +272,13 @@ function StudentsPage({ students, reload }) {
                   </div>
                 )}
                 <Badge belt={s.belt} stripes={s.stripes} size="sm" />
+                {s.notes && (
+                  <div style={{
+                    fontSize: 11, color: "var(--muted)", marginTop: 4, lineHeight: 1.3,
+                    whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                  }}>{s.notes}</div>
+                )}
               </div>
               {expired && <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: "#DC262622", color: "#DC2626", fontWeight: 600 }}>{t.expired}</span>}
               {expired && <Btn variant="success" onClick={e => { e.stopPropagation(); handleRenew(s); }} style={{ fontSize: 11, padding: "5px 10px" }}><RefreshCw size={12} /></Btn>}
@@ -303,6 +310,14 @@ function StudentsPage({ students, reload }) {
           <Input label={t.memberEnd} type="date" value={form.membershipEnd} onChange={e => setForm({ ...form, membershipEnd: e.target.value })} />
         </div>
         {modal === "add" && <Input label={t.amountPaid} type="number" value={form.amountPaid} onChange={e => setForm({ ...form, amountPaid: e.target.value })} />}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 4 }}>{t.notes}</label>
+          <textarea value={form.notes || ""} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} style={{
+            width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid var(--border)",
+            background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none",
+            boxSizing: "border-box", fontFamily: "inherit", resize: "vertical",
+          }} />
+        </div>
         <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
           {modal !== "add" && <Btn variant="danger" loading={saving} onClick={() => handleDelete(form._id)} style={{ marginRight: "auto" }}><Trash2 size={13} /> {t.delete}</Btn>}
           <Btn variant="secondary" onClick={() => setModal(null)}>{t.cancel}</Btn>

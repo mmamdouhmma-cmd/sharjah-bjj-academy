@@ -13,6 +13,7 @@ CREATE TABLE students (
   membership_start DATE,
   membership_end DATE,
   phone TEXT,
+  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
